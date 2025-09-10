@@ -45,9 +45,10 @@ By looking at Heartbeat logs I confirmed AMA was active (`Category = Azure Monit
 ## Detection Rules
 
 I created three rules based on common attacker techniques.  
-I later refined them to reduce noise and make them more realistic.
+I later refined them to reduce noise and make them more realistic.  
+Each rule was tested manually to confirm it triggered as expected.
 
-### 1. Elevated Command Prompt
+### 1. Suspicious Elevated Command Prompt Activity
 **Purpose:** Detects `cmd.exe` run with elevation.  
 ```kql
 SecurityEvent
@@ -58,11 +59,12 @@ SecurityEvent
 | project TimeGenerated, Computer, Account, ParentProcessName, NewProcessName, CommandLine
 ```
 - Severity: Medium  
-- MITRE ATT&CK: T1059 (Command and Scripting Interpreter)
+- MITRE ATT&CK: T1059 (Command and Scripting Interpreter)  
+- **Testing:** I launched `cmd.exe` as Administrator from Explorer. Sentinel raised an alert based on this rule.
 
 ---
 
-### 2. Encoded PowerShell
+### 2. Encoded PowerShell Execution
 **Purpose:** Detects use of `-EncodedCommand` or `-enc` in PowerShell.  
 ```kql
 SecurityEvent
@@ -72,11 +74,12 @@ SecurityEvent
 | project TimeGenerated, Computer, Account, CommandLine, ParentProcessName
 ```
 - Severity: Medium  
-- MITRE ATT&CK: T1059.001 (PowerShell)
+- MITRE ATT&CK: T1059.001 (PowerShell)  
+- **Testing:** I ran a PowerShell command with the `-enc` flag. The rule fired and generated an alert.
 
 ---
 
-### 3. Brute Force Login
+### 3. Brute Force Login Detection
 **Purpose:** Detects 5+ failed logins in 5 minutes, with optional success correlation.  
 ```kql
 let Failed = SecurityEvent
@@ -91,9 +94,8 @@ Failed
 | project Account, IpAddress, FailedLogins, FirstFailed=bin(TimeGenerated, 5m), SuccessTime=TimeGenerated
 ```
 - Severity: High  
-- MITRE ATT&CK: T1110 (Brute Force)
-
----
+- MITRE ATT&CK: T1110 (Brute Force)  
+- **Testing:** I attempted multiple failed logins on the VM using the wrong password, then succeeded. The rule correctly detected the brute force and flagged it.
 
 ## Validation Queries
 
