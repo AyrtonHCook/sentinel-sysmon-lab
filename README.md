@@ -19,6 +19,8 @@ This helped me practice SIEM setup, log collection, KQL queries, and troubleshoo
    - Enabled the Windows Security Events via AMA connector.  
    - Confirmed Security events (e.g., EventID 4688 – new process created) appeared in the `SecurityEvent` table.
 
+![Security Events Ingestion](images/securityevent_ingestion.png)
+
 3. **Sysmon Logs**  
    - Installed Sysmon with default config.  
    - Added a Data Collection Rule (DCR) for:  
