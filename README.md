@@ -12,6 +12,8 @@ This helped me practice SIEM setup, log collection, KQL queries, and troubleshoo
 1. **Agent**  
    - Installed AMA via VM extensions.  
    - Verified with the `Heartbeat` table (`Category = Azure Monitor Agent`, version `1.37.0.0`).
+  
+![AMA Heartbeat](images/heartbeat.png)
 
 2. **Windows Security Logs**  
    - Enabled the Windows Security Events via AMA connector.  
