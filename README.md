@@ -55,6 +55,8 @@ Each detection was implemented as a **Scheduled Analytics Rule** in Sentinel.
 - **Lookback period:** Last 5 minutes  
 - **Effect:** Queries only need to describe the event logic. Sentinel handles the rolling time window automatically.  
 
+![Detection Rules](images/detection_rules.png)
+
 ---
 
 ### 1. Suspicious Elevated Command Prompt Activity
