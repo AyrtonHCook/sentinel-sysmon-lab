@@ -28,7 +28,7 @@ This helped me practice SIEM setup, log collection, KQL queries, and troubleshoo
      Microsoft-Windows-Sysmon/Operational!*
      ```
    - Logs appeared in the `Event` table.
-
+![Sysmon Ingestion](images/sysmondcr.png)
 ---
 
 ## Troubleshooting
