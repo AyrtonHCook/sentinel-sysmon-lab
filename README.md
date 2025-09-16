@@ -138,6 +138,12 @@ SecurityEvent
 ```
 
 ---
+### Triggered Alert Example
+The screenshot below shows an alert generated from my **Suspicious Elevated Command Prompt Activity** rule after I manually ran `cmd.exe` as Administrator.
+
+![Triggered Alert](images/alert_trigger.png)
+
+*Note: I also tested the Encoded PowerShell Execution and Brute Force Login Detection rules, and each generated alerts when triggered.*
 
 ## Results
 - Security logs: ~1,200 events (logons, process creation, failed logons).  
