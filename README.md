@@ -153,7 +153,7 @@ The screenshot below shows an alert generated from my **Suspicious Elevated Comm
 ---
 
 ## Lessons Learned
-- AMA requires DCRs — no DCR = no data.  
+- AMA requires DCRs no DCR = no data.  
 - Sysmon must be explicitly added.  
 - `SourceSystem` is misleading for AMA vs MMA.  
 - Best way to test is to generate fresh events (open notepad, run ping).  
