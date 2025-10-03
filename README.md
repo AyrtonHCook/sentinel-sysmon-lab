@@ -1,6 +1,5 @@
 # Microsoft Sentinel Lab: Sysmon & Security Logs
 
-**Audience:** SOC analyst recruiters.  
 **Goal:** Ingest and analyse Windows Security + Sysmon logs in Microsoft Sentinel.  
 **Skills Gained:** Log collection with AMA, KQL query writing, detection engineering.
 
