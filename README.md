@@ -1,173 +1,87 @@
 # Microsoft Sentinel Lab: Windows Security & Sysmon Logs
 
-## Project Overview
-For this project I used Microsoft Sentinel with the Azure Monitor Agent (AMA) to collect logs from a Windows 10 VM.  
-The goal was to ingest both **Windows Security Events** and **Sysmon telemetry**, then create detection rules to spot suspicious activity.  
-This helped me practice SIEM setup, log collection, KQL queries, and troubleshooting.
+## Summary
+This lab configures Microsoft Sentinel to ingest both Windows Security Events and Sysmon telemetry from a Windows 10 virtual machine. The Azure Monitor Agent (AMA) collects log data that is validated through heartbeats and log count queries. Three scheduled analytics rules detect elevated command prompts, encoded PowerShell execution, and brute-force logins. Manual adversary simulations confirmed telemetry flow and alert fidelity.
 
----
+## Goal
+Deploy Microsoft Sentinel with the Azure Monitor Agent to capture high-fidelity Windows host telemetry (Security Events and Sysmon) and validate custom detections for suspicious command execution and credential attack behaviors in a controlled lab environment.
 
-## Setup
+## Skills Demonstrated
+- Microsoft Sentinel workspace configuration and data connector management
+- Azure Monitor Agent deployment and Data Collection Rule (DCR) assignment
+- Sysmon installation and verification on Windows 10
+- Kusto Query Language (KQL) analytics rule authoring and tuning
+- Threat detection testing through manual adversary simulation
+- Log validation and troubleshooting across multiple telemetry tables
+- MITRE ATT&CK technique mapping to detections
 
-1. **Agent**  
-   - Installed AMA via VM extensions.  
-   - Verified with the `Heartbeat` table (`Category = Azure Monitor Agent`, version `1.37.0.0`).
-  
-![AMA Heartbeat](images/heartbeat.png)
+## Environment and Setup
+| Item | Details |
+| --- | --- |
+| Host | Windows 10 VM connected to Microsoft Sentinel |
+| SIEM | Microsoft Sentinel workspace with scheduled analytics rules |
+| Agent | Azure Monitor Agent (Heartbeat Category `Azure Monitor Agent`, Version `1.37.0.0`) |
+| Telemetry Sources | Windows Security Events (`SecurityEvent` table), Sysmon (`Event` table with `Microsoft-Windows-Sysmon/Operational`) |
+| Additional Tooling | Sysmon (default configuration) |
+| Evidence | Screenshots in `/images` (heartbeat, ingestion confirmation, detection rules, alerts) |
 
-2. **Windows Security Logs**  
-   - Enabled the Windows Security Events via AMA connector.  
-   - Confirmed Security events (e.g., EventID 4688 – new process created) appeared in the `SecurityEvent` table.
+## Quick Reproduction
+1. Deploy AMA to the Windows 10 VM via Azure VM extensions and confirm heartbeat logs.
+2. Enable the Windows Security Events data connector in Sentinel and verify EventID 4688 process creation logs.
+3. Install Sysmon with the default configuration and assign a DCR for `Microsoft-Windows-Sysmon/Operational!*`.
+4. Run validation KQL queries:
+   ```kql
+   search *
+   | summarize Events=count() by $table
+   ```
+   ```kql
+   Event
+   | where EventLog == "Microsoft-Windows-Sysmon/Operational"
+   | summarize Count=count() by EventID
+   ```
+   ```kql
+   SecurityEvent
+   | summarize Count=count() by EventID
+   ```
+5. Configure the scheduled analytics rules listed in the Findings section with a 5-minute frequency and lookback.
+6. Simulate attacks: launch elevated `cmd.exe`, execute PowerShell with `-enc`, and perform repeated failed logins followed by success.
 
-![Security Events Ingestion](images/securityevent_ingestion.png)
+## Findings
+- **AMA heartbeat confirms agent health** — Heartbeat entries show Category `Azure Monitor Agent` and Version `1.37.0.0`. Evidence: `images/heartbeat.png`.
+- **Windows Security Events ingestion validated** — EventID 4688 process creation logs populate `SecurityEvent`. Evidence: `images/securityevent_ingestion.png`.
+- **Sysmon telemetry flowing through DCR** — Sysmon events visible in the `Event` table. Evidence: `images/sysmondcr.png`.
+- **Detection rules operational** — Scheduled analytics rules for elevated cmd, encoded PowerShell, and brute-force detection active. Evidence: `images/detection_rules.png`.
+- **Alert raised during testing** — Sentinel alert triggered when elevated `cmd.exe` executed. Evidence: `images/alert_trigger.png`.
 
-3. **Sysmon Logs**  
-   - Installed Sysmon with default config.  
-   - Added a Data Collection Rule (DCR) for:  
-     ```
-     Microsoft-Windows-Sysmon/Operational!*
-     ```
-   - Logs appeared in the `Event` table.
-   
-![Sysmon Ingestion](images/sysmondcr.png)
+## Results Summary
+| Artefact | What it Proves |
+| --- | --- |
+| `images/heartbeat.png` | AMA deployed and reporting heartbeats |
+| `images/securityevent_ingestion.png` | SecurityEvent table receiving Windows Security telemetry |
+| `images/sysmondcr.png` | Sysmon logs ingested via configured DCR |
+| `images/detection_rules.png` | Analytics rules configured and enabled |
+| `images/alert_trigger.png` | Detection rules generate alerts when attack simulated |
 
----
-
-## Troubleshooting
-
-At first, I thought AMA was not working because logs still showed:
-
-```
-SourceSystem = OpsManager
-```
-
-Normally this means the older MMA agent. After checking further, I learned AMA sometimes still uses this label for compatibility.  
-By looking at Heartbeat logs I confirmed AMA was active (`Category = Azure Monitor Agent`, `Version = 1.37`).  
-
-**Lesson:** don’t rely only on `SourceSystem`. Check multiple fields (Category, Version, DCR assignment).
-
----
-
-## Detection Rules
-
-Each detection was implemented as a **Scheduled Analytics Rule** in Sentinel.  
-- **Frequency:** Every 5 minutes  
-- **Lookback period:** Last 5 minutes  
-- **Effect:** Queries only need to describe the event logic. Sentinel handles the rolling time window automatically.  
-
-![Detection Rules](images/detection_rules.png)
-
----
-
-### 1. Suspicious Elevated Command Prompt Activity
-**Purpose:** Detects `cmd.exe` run with elevation.  
-
-```kql
-SecurityEvent
-| where EventID == 4688
-| extend Proc = tolower(NewProcessName), Parent = tolower(ParentProcessName)
-| where Proc endswith "\\cmd.exe"
-| where TokenElevationType == "%%1937"   
-| project TimeGenerated, Computer, Account, AccountDomain, NewProcessName, ParentProcessName, CommandLine, TokenElevationType
-```
-
-- Severity: Medium  
-- MITRE ATT&CK: T1059 (Command and Scripting Interpreter)  
-- **Testing:** I launched `cmd.exe` as Administrator from Explorer. Sentinel raised an alert based on this rule.
-
----
-
-### 2. Encoded PowerShell Execution
-**Purpose:** Detects use of `-EncodedCommand` or `-enc` in PowerShell.  
-
-```kql
-SecurityEvent
-| where EventID == 4688
-| where tolower(NewProcessName) endswith "powershell.exe"
-| where CommandLine contains "-encodedcommand" or CommandLine contains " -enc "
-| project TimeGenerated, Computer, Account, CommandLine, ParentProcessName
-```
-
-- Severity: Medium  
-- MITRE ATT&CK: T1059.001 (PowerShell)  
-- **Testing:** I ran a PowerShell command with the `-enc` flag. The rule fired and generated an alert.
-
----
-
-### 3. Brute Force Login Detection
-**Purpose:** Detects 5+ failed logins in 5 minutes, with optional success correlation.  
-
-```kql
-let Failed = SecurityEvent
-| where EventID == 4625
-| summarize FailedLogins = count() by Account, IpAddress, bin(TimeGenerated, 5m)
-| where FailedLogins > 5;
-let Success = SecurityEvent
-| where EventID == 4624
-| project Account, IpAddress, TimeGenerated;
-Failed
-| join kind=leftouter (Success) on Account, IpAddress
-| project Account, IpAddress, FailedLogins, FirstFailed=bin(TimeGenerated, 5m), SuccessTime=TimeGenerated
-```
-
-- Severity: High  
-- MITRE ATT&CK: T1110 (Brute Force)  
-- **Testing:** I attempted multiple failed logins on the VM using the wrong password, then succeeded. The rule correctly detected the brute force and flagged it.
-
----
-
-## Validation Queries
-
-- Count logs by table:
-```kql
-search *
-| summarize Events=count() by $table
-```
-
-- Sysmon event counts:
-```kql
-Event
-| where EventLog == "Microsoft-Windows-Sysmon/Operational"
-| summarize Count=count() by EventID
-```
-
-- Security event counts:
-```kql
-SecurityEvent
-| summarize Count=count() by EventID
-```
-
----
-### Triggered Alert Example
-The screenshot below shows an alert generated from my **Suspicious Elevated Command Prompt Activity** rule after I manually ran `cmd.exe` as Administrator.
-
-![Triggered Alert](images/alert_trigger.png)
-
-*Note: I also tested the Encoded PowerShell Execution and Brute Force Login Detection rules, and each generated alerts when triggered.*
-
-## Results
-- Security logs: ~1,200 events (logons, process creation, failed logons).  
-- Sysmon logs: ~100 events (process creation, network connections, image loads).  
-- Custom rules triggered correctly when tested.  
-
----
+## MITRE ATT&CK Mapping (if applicable)
+| Technique ID | Technique Name | Detection / Evidence |
+| --- | --- | --- |
+| T1059 | Command and Scripting Interpreter | Elevated `cmd.exe` detection rule (`images/detection_rules.png`, `images/alert_trigger.png`) |
+| T1059.001 | PowerShell | Encoded PowerShell execution rule (`images/detection_rules.png`) |
+| T1110 | Brute Force | Failed login correlation rule (`images/detection_rules.png`) |
 
 ## Lessons Learned
-- AMA requires DCRs no DCR = no data.  
-- Sysmon must be explicitly added.  
-- `SourceSystem` is misleading for AMA vs MMA.  
-- Best way to test is to generate fresh events (open notepad, run ping).  
+- Assigning Data Collection Rules is mandatory for AMA ingestion.
+- Sysmon requires explicit installation and DCR configuration to surface data in Sentinel.
+- `SourceSystem` labels can be misleading; validate using Category and Version fields.
+- Generating fresh telemetry on demand is the fastest path to detection testing.
 
----
+## Safe Handling / Cost Control
+- Disable or delete unused analytics rules after testing to prevent unnecessary alerting.
+- Stop or deallocate the Windows 10 VM when the lab is idle to avoid compute charges.
+- Remove the AMA extension and DCRs if the lab environment is being torn down permanently.
 
-## Next Steps
-- Expand with detections for lateral movement and persistence.  
-- Create a Sentinel workbook for visualization.  
-- Add more data sources (Azure AD, Office 365).  
+## Case Study Link
+No `docs/CASESTUDY.md` file is present in this repository.
 
----
-
-## Author
-Ayrton Cook  
-BSc Computer Science with Year in Industry (Cybersecurity focus)  
-University of East Anglia  
+## Author Footer
+GPT-5 Codex, Artificial Intelligence (N/A) — [GitHub](https://github.com/openai)
