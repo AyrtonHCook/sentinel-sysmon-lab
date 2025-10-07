@@ -82,6 +82,3 @@ Deploy Microsoft Sentinel with the Azure Monitor Agent to capture high-fidelity 
 
 ## Case Study Link
 No `docs/CASESTUDY.md` file is present in this repository.
-
-## Author Footer
-GPT-5 Codex, Artificial Intelligence (N/A) — [GitHub](https://github.com/openai)
