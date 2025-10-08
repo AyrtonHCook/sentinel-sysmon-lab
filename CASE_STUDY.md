@@ -1,5 +1,5 @@
 # Executive summary
-This case study documents the enablement of Microsoft Sentinel monitoring for the Windows 10 host `SentinelVM1` by deploying the Azure Monitor Agent (AMA) and configuring Data Collection Rules (DCRs) for Windows Security and Sysmon telemetry. Structured KQL validation confirmed that Heartbeat, SecurityEvent, and Event tables received the intended data streams. I inspected Sentinel analytics rules covering elevated command prompts, encoded PowerShell, and brute-force logons, then executed controlled simulations to test alert coverage. Incident review demonstrated that the detection pipeline escalated the expected activity. These results verify that the lab environment is ready for continued defensive experimentation aligned with MITRE ATT&CK techniques.
+This case study captures how I enabled Microsoft Sentinel monitoring for the Windows 10 host `SentinelVM1` by deploying the Azure Monitor Agent (AMA) and configuring Data Collection Rules (DCRs) for Windows Security and Sysmon telemetry. I ran structured KQL checks to make sure the Heartbeat, SecurityEvent, and Event tables received the right data. I also reviewed Sentinel analytics rules for elevated command prompts, encoded PowerShell, and brute-force logons, then ran controlled simulations to see whether the alerts would fire. Investigating the incidents confirmed that the detection pipeline escalated the activity I generated. The results show that the lab is ready for further defensive experiments tied to MITRE ATT&CK techniques.
 
 # Background & scope
 - **Scenario:** Build a focused Sentinel lab to validate AMA onboarding, DCR targeting for Sysmon, and alerting logic using controlled simulations on a single Windows 10 endpoint.
@@ -17,10 +17,10 @@ This case study documents the enablement of Microsoft Sentinel monitoring for th
 | Analytics content | Suspicious Elevated Command Prompt Activity; Encoded PowerShell Execution; Brute Force Login Detection |
 
 # Tools used
-- **Microsoft Sentinel Logs (KQL):** Executed Heartbeat, SecurityEvent, and Event table queries to confirm telemetry ingestion.
-- **Azure Portal Data Collection Rules:** Reviewed the `SysmonWindows` rule to ensure the Sysmon operational channel was targeted through custom XPath.
-- **Microsoft Sentinel Analytics:** Validated the status and configuration of scheduled analytic rules associated with the simulated behaviors.
-- **Sentinel Incidents blade:** Examined generated incidents to verify alert delivery after the test executions.
+- **Microsoft Sentinel Logs (KQL):** I queried the Heartbeat, SecurityEvent, and Event tables to prove telemetry was flowing.
+- **Azure Portal Data Collection Rules:** I double-checked the `SysmonWindows` rule to confirm the Sysmon operational channel was captured through custom XPath.
+- **Microsoft Sentinel Analytics:** I reviewed the scheduled analytic rules linked to the behaviours I simulated.
+- **Sentinel Incidents blade:** I inspected each incident generated after the tests to confirm alert delivery.
 
 # Analysis steps (reproducible)
 1. **Heartbeat validation**
@@ -56,7 +56,7 @@ This case study documents the enablement of Microsoft Sentinel monitoring for th
    - Portal navigation: **Microsoft Sentinel > <workspace> > Configuration > Analytics**.
    - Open each rule: *Suspicious Elevated Command Prompt Activity*, *Encoded PowerShell Execution*, and *Brute Force Login Detection*.
    - Confirm the **Status** is **Enabled**, **Query scheduling** is set to a 5-minute frequency with a 5-minute lookup, and the **Tactics** align with the MITRE mappings documented in this study.
-5. **Simulate adversary behaviors on SentinelVM1**
+5. **Simulate adversary behaviours on SentinelVM1**
    - Elevated command prompt (run in Windows PowerShell):
      ```powershell
      Start-Process cmd.exe -Verb RunAs
@@ -65,7 +65,7 @@ This case study documents the enablement of Microsoft Sentinel monitoring for th
      ```powershell
      powershell.exe -EncodedCommand SQBFAFgALgBlAHgAZQAgACIAQwBtAGQAIgA=
      ```
-     (Base64 decodes to `IEX "Cmd"`, producing a benign invocation while exercising the analytic logic.)
+     (Base64 decodes to `IEX "Cmd"`, giving a harmless invocation while exercising the analytic logic.)
    - Brute-force login pattern:
      ```cmd
      runas /user:.\labuser cmd.exe
@@ -77,30 +77,30 @@ This case study documents the enablement of Microsoft Sentinel monitoring for th
    - Filter by **Status: Active** and locate incidents created by the three analytics rules. Open each incident, review the **Alerts** tab, and capture the incident ID, creation time, and linked entities for documentation. Close the incidents after evidence is collected to keep the workspace tidy.
 
 # Findings & interpretation
-- **AMA heartbeat confirmed:** Heartbeat entries display Category `Azure Monitor Agent` and Version `1.37.0.0`, confirming that `SentinelVM1` reports successfully to Sentinel. ![Heartbeat validation](images/heartbeat.png)
-- **Security events ingested:** Query results surface EventID 4688 process creation logs, demonstrating that Windows Security telemetry is flowing into the workspace. ![SecurityEvent ingestion](images/securityevent_ingestion.png)
-- **Sysmon DCR scoped correctly:** The `SysmonWindows` DCR uses a custom XPath targeting `Microsoft-Windows-Sysmon/Operational!*`, ensuring Sysmon events are routed to Sentinel. ![Sysmon DCR configuration](images/sysmondcr.png)
-- **Analytics rules active:** The three scheduled rules are enabled with appropriate severities and MITRE mappings, indicating readiness to detect the simulated behaviors. ![Analytics rules status](images/detection_rules.png)
-- **Alert triggered as expected:** The elevated command prompt analytic produced Incident 279 with Medium severity, verifying end-to-end detection and incident creation. ![Incident evidence](images/alert_trigger.png)
+- **AMA heartbeat confirmed:** Heartbeat entries display Category `Azure Monitor Agent` and Version `1.37.0.0`, showing that `SentinelVM1` reports successfully to Sentinel. ![Heartbeat validation](images/heartbeat.png)
+- **Security events ingested:** Query results surface EventID 4688 process creation logs, proving that Windows Security telemetry reaches the workspace. ![SecurityEvent ingestion](images/securityevent_ingestion.png)
+- **Sysmon DCR scoped correctly:** The `SysmonWindows` DCR uses a custom XPath targeting `Microsoft-Windows-Sysmon/Operational!*`, so Sysmon events are routed to Sentinel. ![Sysmon DCR configuration](images/sysmondcr.png)
+- **Analytics rules active:** The three scheduled rules are enabled with suitable severities and MITRE mappings, so they are ready to detect the simulated behaviours. ![Analytics rules status](images/detection_rules.png)
+- **Alert triggered as expected:** The elevated command prompt analytic produced Incident 279 with Medium severity, confirming end-to-end detection and incident creation. ![Incident evidence](images/alert_trigger.png)
 
 # MITRE ATT&CK mapping
 | Technique ID | Technique name | Evidence |
 | --- | --- | --- |
 | T1059 | Command and Scripting Interpreter | Suspicious Elevated Command Prompt Activity rule triggered by simulated elevated `cmd.exe` execution (`images/alert_trigger.png`). |
 | T1059.001 | PowerShell | Encoded PowerShell Execution analytic rule enabled to monitor PowerShell abuse (`images/detection_rules.png`). |
-| T1110 | Brute Force | Brute Force Login Detection analytic rule active, prepared to identify password guessing attempts (`images/detection_rules.png`). |
+| T1110 | Brute Force | Brute Force Login Detection analytic rule active, ready to spot password guessing attempts (`images/detection_rules.png`). |
 
 # Limitations & caveats
 - Single-host lab limits visibility into lateral movement, persistence, or multi-stage adversary actions.
-- Simulations provide controlled validation; real-world threat activity may present different signatures and false positives.
-- Analytics thresholds were not tuned for production-scale telemetry and may require adjustment before deployment.
-- Automated response workflows were not evaluated; incident handling remains manual within this lab.
+- Simulations provide controlled validation; real-world threat activity may show different signatures and false positives.
+- Analytics thresholds were not tuned for production-scale telemetry and may need adjustment before deployment.
+- Automated response workflows were not evaluated; incident handling stayed manual within this lab.
 
 # Recommendations
 - Onboard additional endpoints and Azure AD sign-in logs to broaden coverage and enrich correlation opportunities.
 - Develop automation rules or Logic Apps to triage recurring alerts and reduce manual workload.
-- Tune detection rules based on baseline telemetry and incorporate suppression logic to minimize noise.
-- Schedule routine health checks for AMA agents and DCR assignments to ensure continuous data flow.
+- Tune detection rules based on baseline telemetry and add suppression logic to minimise noise.
+- Schedule routine health checks for AMA agents and DCR assignments to keep data flowing.
 
 # Artefacts & screenshots
 - `images/heartbeat.png`
@@ -111,7 +111,7 @@ This case study documents the enablement of Microsoft Sentinel monitoring for th
 - `CASE_STUDY.md`
 
 # Reproducibility and cost/safety controls
-- Deallocate or stop `SentinelVM1` when not required to minimize compute consumption.
+- Deallocate or stop `SentinelVM1` when not required to minimise compute consumption.
 - Remove or disable the `SysmonWindows` DCR and AMA extension once testing concludes to prevent unnecessary charges.
 - Conduct simulations within isolated lab credentials and networks to avoid unintended impact on production resources.
 
